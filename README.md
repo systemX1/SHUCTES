@@ -10,6 +10,10 @@ go + mysql
 
 gin, viper, logrus, go-sql-driver/mysql
 
+### 接口文档
+
+https://documenter.getpostman.com/view/13925655/TzCFir9R 
+
 ### 手动编译
 
 go build -o ctes.exe ./src/Main.go
@@ -33,3 +37,8 @@ docker run \
 NAME[:TAG]
 ```
 
+### TO DO
+
+日志分割, swagger, 自动重启, 表单验证
+
+权限系统, 评论点赞点踩
