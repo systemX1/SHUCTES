@@ -2,7 +2,7 @@ server:
     Port: :8000
 driver:
     Username: root
-    Password: $echo996
+    Password: 
     Network: tcp
     Server: host.docker.internal
     #Server: localhost
