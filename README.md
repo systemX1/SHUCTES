@@ -10,6 +10,10 @@ go+mysql
 
 gin, logrus, viper, go-sql-driver/mysql
 
+#### 接口文档
+
+[SHUCTES Aliyun (getpostman.com)](https://documenter.getpostman.com/view/13925655/TzCFir9R)
+
 #### 编译
 
 go build -o ctes.exe ./src/Main.go
