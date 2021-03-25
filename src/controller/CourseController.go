@@ -7,6 +7,7 @@ import (
 	"SHUCTES/src/model"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 )
 
 func GetCourseInfoHandler() gin.HandlerFunc {
@@ -135,47 +136,65 @@ func SearchWithFulltextHandler() gin.HandlerFunc {
 
 func SearchWithCourseNameHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if course, ok := c.GetQuery("course"); !ok {
-			c.JSON(http.StatusBadRequest,gin.H{
-				"msg":     "Query wrong",
-			})
+		course, ok := c.GetQuery("course")
+		if !ok {
+			c.JSON(http.StatusBadRequest,gin.H{"msg":     "Query wrong"})
+			return
+		}
+		p, ok := c.GetQuery("position")	//初始位置
+		var position int
+		if !ok {
+			position = 0
+		} else {
+			position, _ = strconv.Atoi(p)
+		}
+		o, ok := c.GetQuery("offset")		//偏移
+		var offset int
+		if !ok {
+			offset = 50
+		} else {
+			offset, _ = strconv.Atoi(o)
+		}
+		username, _ := c.GetQuery("username")
+
+		Logger.Infof("Handling Requset, CourseName: %s", course)
+		sql := `
+SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment
+FROM ((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
+LEFT JOIN ctes.star s2 ON course.uid = s2.course_uid AND s2.username = ?)
+LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?
+WHERE course.name LIKE ?
+GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, s2.star_n, content
+ORDER BY avg_star DESC
+LIMIT ?, ?;`
+
+		if rows, err := DB.Query(sql, username, username, "%" + course + "%", position, offset); err != nil {
+			Logger.Errorf("While querying: " + err.Error())
+			c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 			return
 		} else {
-			Logger.Infof("Handling Requset, CourseName: %s", course)
-			sql := `
-		 	SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(star_n IS NULL, 0, star_n)) star_n
-FROM ctes.course LEFT JOIN ctes.star 
-ON course.uid = star.course_uid
-WHERE course.name LIKE ?
-GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school
-ORDER BY star_n DESC;  `
-
-			if rows, err := DB.Query(sql,  "%" + course + "%"); err != nil {
-				Logger.Errorf("While querying: " + err.Error())
-				c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-				return
-			} else {
-				var jsonSent model.Course
-				ret := make([]model.Course, 0)
-//teachno, teachname, teachid, timetext, room, cap, peo_n, school
-				defer rows.Close()
-				for rows.Next() {
-					if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar); err != nil {
-						Logger.Errorf("While scanning rows: " + err.Error())
-						c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-						return
-					} else {
-						ret = append(ret, jsonSent)
-					}
+			var jsonSent model.Course
+			ret := make([]model.Course, 0)
+			//teachno, teachname, teachid, timetext, room, cap, peo_n, school
+			defer rows.Close()
+			for rows.Next() {
+				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment); err != nil {
+					Logger.Errorf("While scanning rows: " + err.Error())
+					c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
+					return
+				} else {
+					ret = append(ret, jsonSent)
 				}
-
-				c.JSON(http.StatusOK, gin.H{
-					"content":	ret,
-					"length": 	len(ret),
-					"msg":     "Request successful",
-				})
 			}
+
+
+			c.JSON(http.StatusOK, gin.H{
+				"content":	ret,
+				"length": 	len(ret),
+				"msg":     "Request successful",
+			})
 		}
+
 	}
 }
 

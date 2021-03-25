@@ -33,19 +33,22 @@ type Teacher struct {
 }
 
 type Course struct {
-	Uid        	string	`json:"uid"`
-	Name      	string 	`json:"name"`
-	Credit    	float32  `json:"credit"`
-	Cid       	string 	`json:"cid"`
-	Teachno   	string 	`json:"teachno"`
-	Teachname  	string 	`json:"teachname"`
-	Teachid 	string 	`json:"teachid"`
-	Timetext  	string 	`json:"timetext"`
-	Room      	string 	`json:"room"`
-	Cap       	int 	`json:"cap"`
-	PeoN      	int 	`json:"peo_n"`
-	School    	string 	`json:"school"`
-	AvgStar		float32 `json:"avg_star"`
+	Uid        	string		`json:"uid"`
+	Name      	string 		`json:"name"`
+	Credit    	float32  	`json:"credit"`
+	Cid       	string 		`json:"cid"`
+	Teachno   	string 		`json:"teachno"`
+	Teachname  	string 		`json:"teachname"`
+	Teachid 	string 		`json:"teachid"`
+	Timetext  	string 		`json:"timetext"`
+	Room      	string 		`json:"room"`
+	Cap       	int 		`json:"cap"`
+	PeoN      	int 		`json:"peo_n"`
+	School    	string 		`json:"school"`
+	AvgStar		float32 	`json:"avg_star"`
+	MyStar		int			`json:"my_star"`
+	MyTagIdx	[]float32	`json:"my_tagidx"`
+	MyComment	string		`json:"my_comment"`
 	//AnsTime   	string 	`json:"ans_time"`
 	//AnsLocal  	string 	`json:"ans_local"`
 	//Teachdate 	string 	`json:"teachdate"`
