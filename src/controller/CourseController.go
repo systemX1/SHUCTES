@@ -199,230 +199,315 @@ LIMIT ?, ?;  `
 
 func SearchWithCIDHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if cid, ok := c.GetQuery("cid"); !ok {
-			c.JSON(http.StatusBadRequest,gin.H{
-				"msg":     "Query wrong",
-			})
+		cid, ok := c.GetQuery("cid")
+		if !ok {
+			c.JSON(http.StatusBadRequest,gin.H{"msg":     "Query wrong"})
+			return
+		}
+		p, ok := c.GetQuery("position")	//初始位置
+		var position int
+		if !ok {
+			position = 0
+		} else {
+			position, _ = strconv.Atoi(p)
+		}
+		o, ok := c.GetQuery("offset")		//偏移
+		var offset int
+		if !ok {
+			offset = 50
+		} else {
+			offset, _ = strconv.Atoi(o)
+		}
+		username, _ := c.GetQuery("username")
+
+		Logger.Infof("Handling Requset, CourseName: %s", cid)
+		sql := `
+SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment, IF(GROUP_CONCAT(DISTINCT tag_idx) IS NULL, '', GROUP_CONCAT(DISTINCT tag_idx)) tag_list
+FROM (((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
+LEFT JOIN ctes.star s2 ON course.uid = s2.course_uid AND s2.username = ?)
+LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?)
+LEFT JOIN ctes.tag ON course.uid = tag.course_uid AND tag.username = ?
+WHERE course.cid LIKE ?
+GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, s2.star_n, content
+ORDER BY avg_star DESC
+LIMIT ?, ?;  `
+
+		if rows, err := DB.Query(sql, username, username, username, "%" + cid + "%", position, offset); err != nil {
+			Logger.Errorf("While querying: " + err.Error())
+			c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 			return
 		} else {
-			Logger.Infof("Handling Requset, cid: %s", cid)
-			sql := `
-SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(star_n IS NULL, 0, star_n)) star_n
-FROM ctes.course LEFT JOIN ctes.star 
-ON course.uid = star.course_uid
-WHERE course.cid LIKE ?
-GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school
-ORDER BY star_n DESC;`
-
-			if rows, err := DB.Query(sql,  "%" + cid + "%"); err != nil {
-				Logger.Errorf("While querying: " + err.Error())
-				c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-				return
-			} else {
-				var jsonSent model.Course
-				ret := make([]model.Course, 0)
-				//teachno, teachname, teachid, timetext, room, cap, peo_n, school
-				defer rows.Close()
-				for rows.Next() {
-					if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar); err != nil {
-						Logger.Errorf("While scanning rows: " + err.Error())
-						c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-						return
-					} else {
-						ret = append(ret, jsonSent)
-					}
+			var jsonSent model.Course
+			ret := make([]model.Course, 0)
+			//teachno, teachname, teachid, timetext, room, cap, peo_n, school
+			defer rows.Close()
+			for rows.Next() {
+				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment, &jsonSent.MyTagIdxArr); err != nil {
+					Logger.Errorf("While scanning rows: " + err.Error())
+					c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
+					return
+				} else {
+					ret = append(ret, jsonSent)
 				}
-
-				c.JSON(http.StatusOK, gin.H{
-					"content":	ret,
-					"length": 	len(ret),
-					"msg":     "Request successful",
-				})
 			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"content":	ret,
+				"length": 	len(ret),
+				"msg":     "Request successful",
+			})
 		}
 	}
 }
 
 func SearchWithTeachnameHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if teachname, ok := c.GetQuery("teachname"); !ok {
-			c.JSON(http.StatusBadRequest,gin.H{
-				"msg":     "Query wrong",
-			})
+		teachname, ok := c.GetQuery("teachname")
+		if !ok {
+			c.JSON(http.StatusBadRequest,gin.H{"msg":     "Query wrong"})
+			return
+		}
+		p, ok := c.GetQuery("position")	//初始位置
+		var position int
+		if !ok {
+			position = 0
+		} else {
+			position, _ = strconv.Atoi(p)
+		}
+		o, ok := c.GetQuery("offset")		//偏移
+		var offset int
+		if !ok {
+			offset = 50
+		} else {
+			offset, _ = strconv.Atoi(o)
+		}
+		username, _ := c.GetQuery("username")
+
+		Logger.Infof("Handling Requset, CourseName: %s", teachname)
+		sql := `
+SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment, IF(GROUP_CONCAT(DISTINCT tag_idx) IS NULL, '', GROUP_CONCAT(DISTINCT tag_idx)) tag_list
+FROM (((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
+LEFT JOIN ctes.star s2 ON course.uid = s2.course_uid AND s2.username = ?)
+LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?)
+LEFT JOIN ctes.tag ON course.uid = tag.course_uid AND tag.username = ?
+WHERE course.teachname LIKE ?
+GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, s2.star_n, content
+ORDER BY avg_star DESC
+LIMIT ?, ?;  `
+
+		if rows, err := DB.Query(sql, username, username, username, "%" + teachname + "%", position, offset); err != nil {
+			Logger.Errorf("While querying: " + err.Error())
+			c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 			return
 		} else {
-			Logger.Infof("Handling Requset, teachname: %s", teachname)
-			sql := `
-SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(star_n IS NULL, 0, star_n)) star_n
-FROM ctes.course LEFT JOIN ctes.star 
-ON course.uid = star.course_uid
-WHERE course.teachname LIKE ?
-GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school
-ORDER BY star_n DESC;`
-
-			if rows, err := DB.Query(sql,  "%" + teachname + "%"); err != nil {
-				Logger.Errorf("While querying: " + err.Error())
-				c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-				return
-			} else {
-				var jsonSent model.Course
-				ret := make([]model.Course, 0)
-				//teachno, teachname, teachid, timetext, room, cap, peo_n, school
-				defer rows.Close()
-				for rows.Next() {
-					if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar); err != nil {
-						Logger.Errorf("While scanning rows: " + err.Error())
-						c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-						return
-					} else {
-						ret = append(ret, jsonSent)
-					}
+			var jsonSent model.Course
+			ret := make([]model.Course, 0)
+			//teachno, teachname, teachid, timetext, room, cap, peo_n, school
+			defer rows.Close()
+			for rows.Next() {
+				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment, &jsonSent.MyTagIdxArr); err != nil {
+					Logger.Errorf("While scanning rows: " + err.Error())
+					c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
+					return
+				} else {
+					ret = append(ret, jsonSent)
 				}
-
-				c.JSON(http.StatusOK, gin.H{
-					"content":	ret,
-					"length": 	len(ret),
-					"msg":     "Request successful",
-				})
 			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"content":	ret,
+				"length": 	len(ret),
+				"msg":     "Request successful",
+			})
 		}
 	}
 }
 
 func SearchWithTeachidHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if teachid, ok := c.GetQuery("teachid"); !ok {
-			c.JSON(http.StatusBadRequest,gin.H{
-				"msg":     "Query wrong",
-			})
+		teachid, ok := c.GetQuery("teachid")
+		if !ok {
+			c.JSON(http.StatusBadRequest,gin.H{"msg":     "Query wrong"})
+			return
+		}
+		p, ok := c.GetQuery("position")	//初始位置
+		var position int
+		if !ok {
+			position = 0
+		} else {
+			position, _ = strconv.Atoi(p)
+		}
+		o, ok := c.GetQuery("offset")		//偏移
+		var offset int
+		if !ok {
+			offset = 50
+		} else {
+			offset, _ = strconv.Atoi(o)
+		}
+		username, _ := c.GetQuery("username")
+
+		Logger.Infof("Handling Requset, CourseName: %s", teachid)
+		sql := `
+SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment, IF(GROUP_CONCAT(DISTINCT tag_idx) IS NULL, '', GROUP_CONCAT(DISTINCT tag_idx)) tag_list
+FROM (((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
+LEFT JOIN ctes.star s2 ON course.uid = s2.course_uid AND s2.username = ?)
+LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?)
+LEFT JOIN ctes.tag ON course.uid = tag.course_uid AND tag.username = ?
+WHERE course.teachid LIKE ?
+GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, s2.star_n, content
+ORDER BY avg_star DESC
+LIMIT ?, ?;  `
+
+		if rows, err := DB.Query(sql, username, username, username, "%" + teachid + "%", position, offset); err != nil {
+			Logger.Errorf("While querying: " + err.Error())
+			c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 			return
 		} else {
-			Logger.Infof("Handling Requset, teachid: %s", teachid)
-			sql := `
-		 	SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(star_n IS NULL, 0, star_n)) star_n
-FROM ctes.course LEFT JOIN ctes.star 
-ON course.uid = star.course_uid
-WHERE course.teachid LIKE ?
-GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school
-ORDER BY star_n DESC;`
-
-			if rows, err := DB.Query(sql,  "%" + teachid + "%"); err != nil {
-				Logger.Errorf("While querying: " + err.Error())
-				c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-				return
-			} else {
-				var jsonSent model.Course
-				ret := make([]model.Course, 0)
-				//teachno, teachname, teachid, timetext, room, cap, peo_n, school
-				defer rows.Close()
-				for rows.Next() {
-					if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar); err != nil {
-						Logger.Errorf("While scanning rows: " + err.Error())
-						c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-						return
-					} else {
-						ret = append(ret, jsonSent)
-					}
+			var jsonSent model.Course
+			ret := make([]model.Course, 0)
+			//teachno, teachname, teachid, timetext, room, cap, peo_n, school
+			defer rows.Close()
+			for rows.Next() {
+				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment, &jsonSent.MyTagIdxArr); err != nil {
+					Logger.Errorf("While scanning rows: " + err.Error())
+					c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
+					return
+				} else {
+					ret = append(ret, jsonSent)
 				}
-
-				c.JSON(http.StatusOK, gin.H{
-					"content":	ret,
-					"length": 	len(ret),
-					"msg":     "Request successful",
-				})
 			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"content":	ret,
+				"length": 	len(ret),
+				"msg":     "Request successful",
+			})
 		}
 	}
 }
 
 func SearchWithTimeTextHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if timetext, ok := c.GetQuery("timetext"); !ok {
-			c.JSON(http.StatusBadRequest,gin.H{
-				"msg":     "Query wrong",
-			})
+		timetext, ok := c.GetQuery("timetext")
+		if !ok {
+			c.JSON(http.StatusBadRequest,gin.H{"msg":     "Query wrong"})
+			return
+		}
+		p, ok := c.GetQuery("position")	//初始位置
+		var position int
+		if !ok {
+			position = 0
+		} else {
+			position, _ = strconv.Atoi(p)
+		}
+		o, ok := c.GetQuery("offset")		//偏移
+		var offset int
+		if !ok {
+			offset = 50
+		} else {
+			offset, _ = strconv.Atoi(o)
+		}
+		username, _ := c.GetQuery("username")
+
+		Logger.Infof("Handling Requset, CourseName: %s", timetext)
+		sql := `
+SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment, IF(GROUP_CONCAT(DISTINCT tag_idx) IS NULL, '', GROUP_CONCAT(DISTINCT tag_idx)) tag_list
+FROM (((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
+LEFT JOIN ctes.star s2 ON course.uid = s2.course_uid AND s2.username = ?)
+LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?)
+LEFT JOIN ctes.tag ON course.uid = tag.course_uid AND tag.username = ?
+WHERE course.timetext LIKE ?
+GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, s2.star_n, content
+ORDER BY avg_star DESC
+LIMIT ?, ?;  `
+
+		if rows, err := DB.Query(sql, username, username, username, "%" + timetext + "%", position, offset); err != nil {
+			Logger.Errorf("While querying: " + err.Error())
+			c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 			return
 		} else {
-			Logger.Infof("Handling Requset, timetext: %s", timetext)
-			sql := `
-		 	SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(star_n IS NULL, 0, star_n)) star_n
-FROM ctes.course LEFT JOIN ctes.star 
-ON course.uid = star.course_uid
-WHERE course.timetext LIKE ?
-GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school
-ORDER BY star_n DESC;`
-
-			if rows, err := DB.Query(sql,  "%" + timetext + "%"); err != nil {
-				Logger.Errorf("While querying: " + err.Error())
-				c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-				return
-			} else {
-				var jsonSent model.Course
-				ret := make([]model.Course, 0)
-				//teachno, teachname, teachid, timetext, room, cap, peo_n, school
-				defer rows.Close()
-				for rows.Next() {
-					if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar); err != nil {
-						Logger.Errorf("While scanning rows: " + err.Error())
-						c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-						return
-					} else {
-						ret = append(ret, jsonSent)
-					}
+			var jsonSent model.Course
+			ret := make([]model.Course, 0)
+			//teachno, teachname, teachid, timetext, room, cap, peo_n, school
+			defer rows.Close()
+			for rows.Next() {
+				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment, &jsonSent.MyTagIdxArr); err != nil {
+					Logger.Errorf("While scanning rows: " + err.Error())
+					c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
+					return
+				} else {
+					ret = append(ret, jsonSent)
 				}
-
-				c.JSON(http.StatusOK, gin.H{
-					"content":	ret,
-					"length": 	len(ret),
-					"msg":     "Request successful",
-				})
 			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"content":	ret,
+				"length": 	len(ret),
+				"msg":     "Request successful",
+			})
 		}
 	}
 }
 
 func SearchWithSchoolHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if school, ok := c.GetQuery("school"); !ok {
-			c.JSON(http.StatusBadRequest,gin.H{
-				"msg":     "Query wrong",
-			})
+		school, ok := c.GetQuery("school")
+		if !ok {
+			c.JSON(http.StatusBadRequest,gin.H{"msg":     "Query wrong"})
+			return
+		}
+		p, ok := c.GetQuery("position")	//初始位置
+		var position int
+		if !ok {
+			position = 0
+		} else {
+			position, _ = strconv.Atoi(p)
+		}
+		o, ok := c.GetQuery("offset")		//偏移
+		var offset int
+		if !ok {
+			offset = 50
+		} else {
+			offset, _ = strconv.Atoi(o)
+		}
+		username, _ := c.GetQuery("username")
+
+		Logger.Infof("Handling Requset, CourseName: %s", school)
+		sql := `
+SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment, IF(GROUP_CONCAT(DISTINCT tag_idx) IS NULL, '', GROUP_CONCAT(DISTINCT tag_idx)) tag_list
+FROM (((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
+LEFT JOIN ctes.star s2 ON course.uid = s2.course_uid AND s2.username = ?)
+LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?)
+LEFT JOIN ctes.tag ON course.uid = tag.course_uid AND tag.username = ?
+WHERE course.school LIKE ?
+GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, s2.star_n, content
+ORDER BY avg_star DESC
+LIMIT ?, ?;  `
+
+		if rows, err := DB.Query(sql, username, username, username, "%" + school + "%", position, offset); err != nil {
+			Logger.Errorf("While querying: " + err.Error())
+			c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 			return
 		} else {
-			Logger.Infof("Handling Requset, school: %s", school)
-			sql := `
-		 	SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(star_n IS NULL, 0, star_n)) star_n
-FROM ctes.course LEFT JOIN ctes.star 
-ON course.uid = star.course_uid
-WHERE course.school LIKE ?
-GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school
-ORDER BY star_n DESC;`
-
-			if rows, err := DB.Query(sql,  "%" + school + "%"); err != nil {
-				Logger.Errorf("While querying: " + err.Error())
-				c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-				return
-			} else {
-				var jsonSent model.Course
-				ret := make([]model.Course, 0)
-				//teachno, teachname, teachid, timetext, room, cap, peo_n, school
-				defer rows.Close()
-				for rows.Next() {
-					if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar); err != nil {
-						Logger.Errorf("While scanning rows: " + err.Error())
-						c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
-						return
-					} else {
-						ret = append(ret, jsonSent)
-					}
+			var jsonSent model.Course
+			ret := make([]model.Course, 0)
+			//teachno, teachname, teachid, timetext, room, cap, peo_n, school
+			defer rows.Close()
+			for rows.Next() {
+				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment, &jsonSent.MyTagIdxArr); err != nil {
+					Logger.Errorf("While scanning rows: " + err.Error())
+					c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
+					return
+				} else {
+					ret = append(ret, jsonSent)
 				}
-
-				c.JSON(http.StatusOK, gin.H{
-					"content":	ret,
-					"length": 	len(ret),
-					"msg":     "Request successful",
-				})
 			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"content":	ret,
+				"length": 	len(ret),
+				"msg":     "Request successful",
+			})
 		}
 	}
 }
