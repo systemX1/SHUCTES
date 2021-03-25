@@ -78,6 +78,7 @@ func AddCourseStarHandler() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"msg": "Query wrong"})
 			return
 		} else {
+			StarNValidation(&jsonReci.StarN)
 			Logger.Infof("Handling Requset, Username: %s, JsonReci = %#v", username, jsonReci)
 
 			sql := `
@@ -133,6 +134,7 @@ func UpdateCourseStarHandler() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"msg": "Query wrong"})
 			return
 		} else {
+			StarNValidation(&jsonReci.StarN)
 			Logger.Infof("Handling Requset, Username: %s, JsonReci = %#v", username, jsonReci)
 
 			sql := `
@@ -208,3 +210,10 @@ func DeleteCourseStarHandler() gin.HandlerFunc {
 	}
 }
 
+func StarNValidation(starN *int) {
+	if *starN < 0 {
+		*starN = 0
+	} else if *starN > 5{
+		*starN = 5
+	}
+}

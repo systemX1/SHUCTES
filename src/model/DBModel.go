@@ -47,7 +47,7 @@ type Course struct {
 	School    	string 		`json:"school"`
 	AvgStar		float32 	`json:"avg_star"`
 	MyStar		int			`json:"my_star"`
-	MyTagIdx	[]float32	`json:"my_tagidx"`
+	MyTagIdxArr	string		`json:"my_tagidx"`
 	MyComment	string		`json:"my_comment"`
 	//AnsTime   	string 	`json:"ans_time"`
 	//AnsLocal  	string 	`json:"ans_local"`

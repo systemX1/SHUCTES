@@ -26,6 +26,7 @@ type Driver struct {
 	Port 				string
 	Database 			string
 	InterpolateParams 	bool
+	ParseTime			bool
 }
 
 type LogConf struct {

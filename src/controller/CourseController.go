@@ -159,16 +159,17 @@ func SearchWithCourseNameHandler() gin.HandlerFunc {
 
 		Logger.Infof("Handling Requset, CourseName: %s", course)
 		sql := `
-SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment
-FROM ((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
+SELECT course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, AVG(IF(s1.star_n IS NULL, 0, s1.star_n)) avg_star, IF(s2.star_n IS NULL, 0, s2.star_n) my_star, IF(content IS NULL, '', content) comment, IF(GROUP_CONCAT(DISTINCT tag_idx) IS NULL, '', GROUP_CONCAT(DISTINCT tag_idx)) tag_list
+FROM (((ctes.course LEFT JOIN ctes.star s1 ON course.uid = s1.course_uid)
 LEFT JOIN ctes.star s2 ON course.uid = s2.course_uid AND s2.username = ?)
-LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?
+LEFT JOIN ctes.comment ON course.uid = comment.course_uid AND comment.username = ?)
+LEFT JOIN ctes.tag ON course.uid = tag.course_uid AND tag.username = ?
 WHERE course.name LIKE ?
 GROUP BY course.uid, course.name, credit, cid, teachno, teachname, teachid, timetext, room, cap, peo_n, school, s2.star_n, content
 ORDER BY avg_star DESC
-LIMIT ?, ?;`
+LIMIT ?, ?;  `
 
-		if rows, err := DB.Query(sql, username, username, "%" + course + "%", position, offset); err != nil {
+		if rows, err := DB.Query(sql, username, username, username, "%" + course + "%", position, offset); err != nil {
 			Logger.Errorf("While querying: " + err.Error())
 			c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 			return
@@ -178,7 +179,7 @@ LIMIT ?, ?;`
 			//teachno, teachname, teachid, timetext, room, cap, peo_n, school
 			defer rows.Close()
 			for rows.Next() {
-				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment); err != nil {
+				if err := rows.Scan(&jsonSent.Uid, &jsonSent.Name, &jsonSent.Credit, &jsonSent.Cid, &jsonSent.Teachno, &jsonSent.Teachname, &jsonSent.Teachid, &jsonSent.Timetext, &jsonSent.Room, &jsonSent.Cap, &jsonSent.PeoN, &jsonSent.School, &jsonSent.AvgStar, &jsonSent.MyStar, &jsonSent.MyComment, &jsonSent.MyTagIdxArr); err != nil {
 					Logger.Errorf("While scanning rows: " + err.Error())
 					c.JSON(http.StatusInternalServerError,  gin.H{"msg": "server error"})
 					return
@@ -187,14 +188,12 @@ LIMIT ?, ?;`
 				}
 			}
 
-
 			c.JSON(http.StatusOK, gin.H{
 				"content":	ret,
 				"length": 	len(ret),
 				"msg":     "Request successful",
 			})
 		}
-
 	}
 }
 
