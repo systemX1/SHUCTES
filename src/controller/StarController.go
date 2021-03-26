@@ -211,8 +211,8 @@ func DeleteCourseStarHandler() gin.HandlerFunc {
 }
 
 func StarNValidation(starN *int) {
-	if *starN < 0 {
-		*starN = 0
+	if *starN < 1 {
+		*starN = 1
 	} else if *starN > 5{
 		*starN = 5
 	}

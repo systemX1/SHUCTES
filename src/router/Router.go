@@ -20,7 +20,6 @@ func RegisterRouter(app *gin.Engine) {
 	app.Use(gin.Recovery())
 
 	r := app.Group("/")
-
 	r.POST("/signin", controller.SigninHandler())
 	r.POST("/login", authMiddleware.LoginHandler)
 
