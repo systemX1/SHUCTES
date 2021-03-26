@@ -16,6 +16,8 @@ func RegisterRouter(app *gin.Engine) {
 	app.NoRoute(middleware.GlobalNoRouteHandler())
 	//记录请求中间件
 	app.Use(middleware.LoggerHandler())
+	//服务重启中间件
+	app.Use(gin.Recovery())
 
 	r := app.Group("/")
 
